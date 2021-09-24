@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 
-	// "sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -155,56 +155,85 @@ func collapse(a, d []int) ([]int, []int) {
 	return ac, dc
 }
 
-func computeBlocks(a, d []int, v [][]int8) []block {
-	// scorro gli indici,
-	// cerco la finestra per un blocco
-	// controllo per quegli indici se bit vector chiude il blocco
-	// se chiude appendo ai blocchi chiusi in output
-	// se non chiude cambio indice
+func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
+	endingblocks := make([]block, 0, len(d))
+	//compute openblocks
+	for i := 1; i < len(d); i++ {
+		x := i
+		y := i
 
-	return
-}
-
-func availableBlocks(a, d []int) []block {
-	availblock := make([]block, 0, len(d))
-	for i := 1; i < len(d)-1; i++ {
-		x := i - 1
-		y := i + 1
 		if d[i] <= d[0]-minBlockWidth {
-			// continuo ad espandere i blocchi con row sopra e sotto in base al livello di D e ai bound
 			for x > 0 && d[x] <= d[i] {
 				x--
 			}
 
-			for y < len(d) && d[y] <= d[i] {
+			for y < len(d)-1 && d[y] <= d[i] {
 				y++
 			}
+			y--
 
-			// controllo se si puo espandere
-			// se si lascio perdere
-			// se no chiudo il blocco e lo appendo in uscita
+			if y-x+1 < minBlockRows {
+				continue // se il blocco e' troppo piccolo, passo all'iterazione successiva
+			}
 
-			// block trim
-			newblock := makeblock(d[i], d[0], a[x:y])
-			log.Println("appending block: ", newblock)
-			availblock = append(availblock, newblock)
+			//check maximality with v
+			// NUMERO DI ALLELI
+			open := false
+			for t := range v {
+				// fmt.Println("DEBUG:: t", t)
+				pivot := x + 1
+				for pivot <= y {
+					if v[t][pivot] != 0 {
+						break
+					}
+					pivot++
+				}
+				if pivot == y+1 {
+					// se scorro tutto v[t][pivot] allora il blocco e' open, posso saltarlo e andare all'index successivo
+					open = true
+					break
+				}
 
+			}
+			if !open {
+				// QUI FACCIO L'APPEND DI  block(d[i],d[0], X, Y)  ai blocchi chiusi
+				// fmt.Println("DEBUG:: ", "d[i]=", d[i], "  d[0]=", d[0], "  x=", x, "  y=", y, "  d[x]=", d[x], "  d[y]=", d[y], "  len(d)=", len(d))
+				endingblocks = append(endingblocks, makeblock(d[i], d[0], x, y, a))
+			}
 		}
 
 	}
 
-	return availblock
+	return endingblocks
+}
 
-	//TODO
-	//TRIM to 1 instance of block
-	// check maximality with BItVector
+func makeblock(c, b, p, q int, a []int) block {
+	var bl block
+	bl.i = c
+	bl.j = b
+
+	arr := make([]int, q-p+1)
+	for i := 0; i <= q-p; i++ {
+		arr[i] = a[i+p]
+	}
+	sort.Ints(arr)
+	arr = removeDuplicateInt(arr)
+	bl.k = arr
+
+	return bl
 
 }
 
-func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
-	endingblocks := make([]block, 0, len(d))
-
-	return endingblocks
+func removeDuplicateInt(intSlice []int) []int {
+	allKeys := make(map[int]bool)
+	list := []int{}
+	for _, item := range intSlice {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }
 
 type block struct {
@@ -213,17 +242,11 @@ type block struct {
 	k []int // row indexes
 }
 
-type openblock struct {
-	a int // column index beg
-	b int // column index end
-	i int // row index begin
-	j int // row index end
-}
-
 var alphabet int
 var wildcard bool
 var minBlockWidth int
 var minBlockRows int
+var index int
 
 func main() {
 	// flags
@@ -232,6 +255,7 @@ func main() {
 	minBlockRowsPtr := flag.Int("min_r", 2, "Set minimum rows for blocks")
 	wildcardPtr := flag.Bool("w", true, "Set usage of wildcards in the input file")
 	logPtr := flag.Bool("log", false, "set log boolean")
+	indexPtr := flag.Int("q", -1, "set query index to stop computation at")
 
 	flag.Parse()
 
@@ -244,6 +268,7 @@ func main() {
 	minBlockWidth = *minBlockWidthPtr
 	minBlockRows = *minBlockRowsPtr
 	inputFile := flag.Args()[0]
+	index = *indexPtr
 
 	// serve questo flag parse?
 
@@ -284,6 +309,7 @@ func main() {
 	fmt.Println("Assuming: alphabet size ==", alphabet) // in further implementation the program could recognize itself input type
 	fmt.Println("Assuming: wildcard presence ==", wildcard)
 	fmt.Println("Assuming: min block size ==", minBlockRows, "rows x", minBlockWidth, "columns")
+	fmt.Println("Assuming: queryIndex ==", index)
 
 	// initArrays ak0 dk0 v
 
@@ -300,7 +326,12 @@ func main() {
 	v := make([][]int8, alphabet)
 
 	pivot := 0
-	maxarray := len(haplos[:])
+	var maxarray int
+	if index < 0 {
+		maxarray = len(haplos[0][:])
+	} else {
+		maxarray = index
+	}
 
 	var since time.Duration
 	var start = time.Now()
@@ -314,13 +345,12 @@ func main() {
 		// CALCOLO DEI BLOCCHI TERMINANTI IN PIVOT
 		blockatk := computeEndingBlocks(ak0, dk0, pivot, v)
 
-		fmt.Println("Blocks ending at k = ", pivot, ":")
-
 		pivot++
+		fmt.Println("\nBlocks ending at k = ", pivot, ":", blockatk)
 	}
 
 	since = time.Since(start)
 	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
-	fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
+	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 
 }
