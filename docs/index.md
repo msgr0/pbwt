@@ -1,4 +1,4 @@
-# Journey in the Wild(card)pbwt
+# journey in the wild(card)pbwt
 ---
 ## bitvector
 The bitvector is used to calculate in fixed time whether or not an open blocks ends at the current `k` index.
