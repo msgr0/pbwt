@@ -96,7 +96,7 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 			}
 		}
 
-		if (allele < 10) && (allele >= 0) {
+		if (allele <= 9) && (allele >= 0) {
 
 			a[allele] = append(a[allele], ak[i])
 			d[allele] = append(d[allele], p[allele])
@@ -117,9 +117,13 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	newdim := 0
 	for i := 0; i < alphabet; i++ {
 		newdim += len(a[i])
+		// a[i], d[i] = collapse(a[i], d[i])
+		// smartcollapse(a[i], d[i])
+
 	}
 	var akk []int
 	for i := 0; i < alphabet; i++ {
+
 		akk = append(akk, a[i]...)
 	}
 	var dkk []int
@@ -130,29 +134,59 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	return akk, dkk
 
 }
+func smartcollapse(ak, dk []int) ([]int, []int) {
+	a := make([]int, len(ak))
+	d := make([]int, len(dk))
+	copy(a, ak)
+	copy(d, dk)
 
+	if len(a) > 1 {
+		i := 0
+		j := 0
+		for i < len(a)-1 { // scorro tutto l'array a
+			// se trovo due valori diversi passo al successivo
+			if a[i] != a[i+1] && i <= j+1 {
+				i++
+				j = i
+			} else if a[i] != a[i+1] && i > j+1 {
+				a = append(a[:j+1], a[i:]...)
+				d = append(d[:j+1], d[i:]...)
+				i++
+				j = i
+			} else { // mi trovo davanti alla prima occorrenza uguale append a[:j], a[i:] if i > j
+				i++
+			}
+		}
+	}
+	return a, d
+}
 func collapse(a, d []int) ([]int, []int) {
-	ac := make([]int, 0, len(a))
-	dc := make([]int, 0, len(d))
+	if len(a) > 1 {
+		ac := []int{}
+		dc := []int{}
+		// ac := make([]int, 0, len(a))
+		// dc := make([]int, 0, len(d))
 
-	j := 0
-	pivot := 0
-	for j < len(a)-1 {
-		if a[j] == a[j+1] {
-			j++
-		} else {
-			ac = append(ac, a[pivot])
-			dc = append(dc, d[pivot])
-			j++
-			pivot = j
+		j := 0
+		pivot := 0
+		for j < len(a)-1 {
+			if a[j] == a[j+1] {
+				j++
+			} else {
+				ac = append(ac, a[pivot])
+				dc = append(dc, d[pivot])
+				j++
+				pivot = j
+			}
+
 		}
 
+		ac = append(ac, a[pivot])
+		dc = append(dc, d[pivot])
+
+		return ac, dc
 	}
-
-	ac = append(ac, a[pivot])
-	dc = append(dc, d[pivot])
-
-	return ac, dc
+	return a, d
 }
 
 func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
@@ -198,7 +232,10 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
 			if !open {
 				// QUI FACCIO L'APPEND DI  block(d[i],d[0], X, Y)  ai blocchi chiusi
 				// fmt.Println("DEBUG:: ", "d[i]=", d[i], "  d[0]=", d[0], "  x=", x, "  y=", y, "  d[x]=", d[x], "  d[y]=", d[y], "  len(d)=", len(d))
-				endingblocks = append(endingblocks, makeblock(d[i], d[0], x, y, a))
+				resblock := makeblock(d[i], d[0], x, y, a)
+				if len(resblock.k) >= minBlockWidth {
+					endingblocks = append(endingblocks, resblock)
+				}
 			}
 		}
 
@@ -284,7 +321,7 @@ func main() {
 
 	// big buffer for input file/ further testing and comprehension needed
 	scanner := bufio.NewScanner(file)
-	buf := make([]byte, 0, 64*5000)
+	buf := make([]byte, 0, 64*50000)
 	scanner.Buffer(buf, 1024*1024)
 
 	scanner.Split(bufio.ScanLines)
@@ -297,7 +334,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("File error, aborting")
 	}
-	columns := len(haplos[:])
+	columns := len(haplos[0][:])
 	rows := len(haplos)
 
 	// INPUT INFO
@@ -339,18 +376,24 @@ func main() {
 	for pivot < maxarray {
 
 		ak0, dk0 = computeNextArrays(ak0, dk0, pivot, haplos)
-		ak0, dk0 = collapse(ak0, dk0)
+		ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alleli
 		// CALCOLO DEL BITVECTOR
 		v = computeBitVectors(ak0, dk0, pivot, haplos)
 		// CALCOLO DEI BLOCCHI TERMINANTI IN PIVOT
 		blockatk := computeEndingBlocks(ak0, dk0, pivot, v)
 
 		pivot++
-		fmt.Println("\nBlocks ending at k = ", pivot, ":", blockatk)
+		if len(blockatk) > 0 {
+			fmt.Print("[", pivot, "]>", len(blockatk), "> ")
+			for i := range blockatk {
+				fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
+			}
+			fmt.Println()
+		}
 	}
 
 	since = time.Since(start)
 	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
-	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
+	fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 
 }
