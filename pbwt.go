@@ -373,7 +373,7 @@ func main() {
 
 	var since time.Duration
 	var start = time.Now()
-
+	blocksum := 0
 	for pivot < maxarray {
 
 		ak0, dk0 = computeNextArrays(ak0, dk0, pivot, haplos)
@@ -384,8 +384,10 @@ func main() {
 		blockatk := computeEndingBlocks(ak0, dk0, pivot, v)
 
 		pivot++
-		if len(blockatk) > 0 {
-			fmt.Print("[", pivot, "]>", len(blockatk), "> ")
+		blocks := len(blockatk)
+		blocksum += blocks
+		if blocks > 0 {
+			fmt.Print("[", pivot, "]>", blocks, " ")
 			for i := range blockatk {
 				fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
 			}
@@ -394,7 +396,8 @@ func main() {
 	}
 
 	since = time.Since(start)
+	fmt.Println("ENDED with a total of ", blocksum)
 	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
-	fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
+	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 
 }
