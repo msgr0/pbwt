@@ -318,12 +318,12 @@ func main() {
 	if err != nil {
 		return
 	}
-
+	info, _ := file.Stat()
+	max := int(info.Size())
 	// big buffer for input file/ further testing and comprehension needed
 	scanner := bufio.NewScanner(file)
-	maxsize := 64*100000*64
-	buf := make([]byte, 0, maxsize)
-	scanner.Buffer(buf, maxsize)
+	buf := make([]byte, 0, max)
+	scanner.Buffer(buf, max)
 
 	scanner.Split(bufio.ScanLines)
 	var haplos []string
