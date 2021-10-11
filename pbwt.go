@@ -386,13 +386,13 @@ func main() {
 		pivot++
 		blocks := len(blockatk)
 		blocksum += blocks
-		if blocks > 0 {
-			fmt.Print("[", pivot, "]>", blocks, " ")
-			for i := range blockatk {
-				fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
-			}
-			fmt.Println()
-		}
+		// if blocks > 0 {
+		// 	fmt.Print("[", pivot, "]>", blocks, " ")
+		// 	for i := range blockatk {
+		// 		fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
+		// 	}
+		// 	fmt.Println()
+		// }
 	}
 
 	since = time.Since(start)
