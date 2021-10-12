@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
+	"runtime/pprof"
 
 	"time"
 
@@ -253,8 +253,8 @@ func makeblock(c, b, p, q int, a []int) block {
 	for i := 0; i <= q-p; i++ {
 		arr[i] = a[i+p]
 	}
-	sort.Ints(arr)
-	arr = removeDuplicateInt(arr)
+	// sort.Ints(arr)
+	// arr = removeDuplicateInt(arr)
 	bl.k = arr
 
 	return bl
@@ -286,6 +286,10 @@ var minBlockRows int
 var index int
 
 func main() {
+	f, err := os.Create("cpuprof.prof")
+	defer f.Close()
+	pprof.StartCPUProfile(f)
+
 	// flags
 	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
 	minBlockWidthPtr := flag.Int("min_w", 2, "Set minimum SNP width for blocks")
@@ -399,5 +403,6 @@ func main() {
 	fmt.Println("ENDED with a total of ", blocksum)
 	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
 	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
+	pprof.StopCPUProfile()
 
 }
