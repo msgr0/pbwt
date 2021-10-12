@@ -286,8 +286,6 @@ var minBlockRows int
 var index int
 
 func main() {
-	f, err := os.Create("cpuprof.prof")
-	defer f.Close()
 
 	// flags
 	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
