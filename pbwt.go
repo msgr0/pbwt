@@ -261,17 +261,17 @@ func makeblock(c, b, p, q int, a []int) block {
 
 }
 
-func removeDuplicateInt(intSlice []int) []int {
-	allKeys := make(map[int]bool)
-	list := []int{}
-	for _, item := range intSlice {
-		if _, value := allKeys[item]; !value {
-			allKeys[item] = true
-			list = append(list, item)
-		}
-	}
-	return list
-}
+// func removeDuplicateInt(intSlice []int) []int {
+// 	allKeys := make(map[int]bool)
+// 	list := []int{}
+// 	for _, item := range intSlice {
+// 		if _, value := allKeys[item]; !value {
+// 			allKeys[item] = true
+// 			list = append(list, item)
+// 		}
+// 	}
+// 	return list
+// }
 
 type block struct {
 	i int   // begin column
@@ -288,7 +288,6 @@ var index int
 func main() {
 	f, err := os.Create("cpuprof.prof")
 	defer f.Close()
-	pprof.StartCPUProfile(f)
 
 	// flags
 	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
@@ -296,12 +295,19 @@ func main() {
 	minBlockRowsPtr := flag.Int("min_r", 2, "Set minimum rows for blocks")
 	wildcardPtr := flag.Bool("w", true, "Set usage of wildcards in the input file")
 	logPtr := flag.Bool("log", false, "set log boolean")
+	profPtr := flag.Bool("p", false, "run with profiler")
 	indexPtr := flag.Int("q", -1, "set query index to stop computation at")
 
 	flag.Parse()
 
 	if !*logPtr {
 		log.SetLevel(0)
+	}
+
+	if *profPtr {
+		f, err := os.Create("cpuprof.prof")
+		defer f.Close()
+		pprof.StartCPUProfile(f)
 	}
 
 	alphabet = *alphabetPtr
@@ -403,6 +409,8 @@ func main() {
 	fmt.Println("ENDED with a total of ", blocksum)
 	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
 	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
-	pprof.StopCPUProfile()
+	if *profPtr {
+		pprof.StopCPUProfile()
+	}
 
 }
