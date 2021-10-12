@@ -305,7 +305,7 @@ func main() {
 	}
 
 	if *profPtr {
-		f, err := os.Create("cpuprof.prof")
+		f, _ := os.Create("cpuprof.prof")
 		defer f.Close()
 		pprof.StartCPUProfile(f)
 	}
