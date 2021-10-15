@@ -66,8 +66,7 @@ func computeBitVectors(ak, dk []int, k int, matrix []string) [][]int8 {
 
 func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	dim := len(ak)
-	// allocing dim size, that's not really memory wise to be honest
-	// go slices got me covered ehehehe
+
 	a := make([][]int, alphabet)
 	for i := range a {
 		a[i] = make([]int, 0, dim)
