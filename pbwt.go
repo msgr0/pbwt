@@ -188,8 +188,8 @@ func collapse(a, d []int) ([]int, []int) {
 	return a, d
 }
 
-func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
-	endingblocks := make([]block, 0, len(d))
+func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
+	endingblocks := make([]blockset, 0, len(d))
 	//compute openblocks
 	for i := 1; i < len(d); i++ {
 		x := i
@@ -231,10 +231,15 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
 			if !open {
 				// QUI FACCIO L'APPEND DI  block(d[i],d[0], X, Y)  ai blocchi chiusi
 				// fmt.Println("DEBUG:: ", "d[i]=", d[i], "  d[0]=", d[0], "  x=", x, "  y=", y, "  d[x]=", d[x], "  d[y]=", d[y], "  len(d)=", len(d))
-				resblock := makeblock(d[i], d[0], x, y, a)
-				if len(resblock.k) >= minBlockWidth {
-					endingblocks = append(endingblocks, resblock)
+				// resblock := makeblock(d[i], d[0], x, y, a)
+				// if len(resblock.k) >= minBlockWidth {
+				// 	endingblocks = append(endingblocks, resblock)
+				// }
+				resset := makeblockset(d[i], d[0], x, y, a)
+				if len(resset.k) >= minBlockWidth {
+					endingblocks = append(endingblocks, resset)
 				}
+
 			}
 		}
 
@@ -260,6 +265,22 @@ func makeblock(c, b, p, q int, a []int) block {
 
 }
 
+func makeblockset(c, b, p, q int, a []int) blockset {
+	var bls blockset
+	bls.i = c
+	bls.j = b
+
+	set := make(map[int]struct{})
+
+	for i := 0; i <= q-p; i++ {
+		set[a[i+p]] = struct{}{}
+	}
+
+	bls.k = set
+	return bls
+
+}
+
 // func removeDuplicateInt(intSlice []int) []int {
 // 	allKeys := make(map[int]bool)
 // 	list := []int{}
@@ -276,6 +297,12 @@ type block struct {
 	i int   // begin column
 	j int   // end column
 	k []int // row indexes
+}
+
+type blockset struct {
+	i int
+	j int
+	k map[int]struct{}
 }
 
 var alphabet int
