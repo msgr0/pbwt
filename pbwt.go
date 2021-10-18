@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"sort"
 
 	"time"
 
@@ -130,7 +131,7 @@ func main() {
 	for pivot < maxarray {
 
 		ak0, dk0 = computeNextArrays(ak0, dk0, pivot, haplos)
-		ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alleli
+		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alleli
 		// CALCOLO DEL BITVECTOR
 		v := computeBitVectors(ak0, dk0, pivot, haplos)
 		// CALCOLO DEI BLOCCHI TERMINANTI IN PIVOT
@@ -262,7 +263,8 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	newdim := 0
 	for i := 0; i < alphabet; i++ {
 		newdim += len(a[i])
-		a[i], d[i] = smartcollapse(a[i], d[i])
+		a[i], d[i] = collapse(a[i], d[i])
+		// a[i], d[i] = smartcollapse(a[i], d[i])
 
 	}
 	var akk []int
@@ -289,11 +291,11 @@ func smartcollapse(ak, dk []int) ([]int, []int) {
 		for i := 0; i < len(a)-1; i++ { // scorro tutto l'array a
 			// se trovo due valori diversi passo al successivo
 			if a[i] != a[i+1] {
-				if i <= j {
+				if i <= j+1 {
 					j = i
 				} else { // i > j+1
-					a = append(a[:j], a[i:]...)
-					d = append(d[:j], d[i:]...)
+					a = append(a[:j+1], a[i:]...)
+					d = append(d[:j+1], d[i:]...)
 					j = i
 				}
 
@@ -303,30 +305,34 @@ func smartcollapse(ak, dk []int) ([]int, []int) {
 	return a, d
 }
 
-// func collapse(a, d []int) ([]int, []int) {
-// 	if len(a) > 1 {
-// 		ac := []int{}
-// 		dc := []int{}
-// 		// ac := make([]int, 0, len(a))
-// 		// dc := make([]int, 0, len(d))
-// 		j := 0
-// 		pivot := 0
-// 		for j < len(a)-1 {
-// 			if a[j] == a[j+1] {
-// 				j++
-// 			} else {
-// 				ac = append(ac, a[pivot])
-// 				dc = append(dc, d[pivot])
-// 				j++
-// 				pivot = j
-// 			}
-// 		}
-// 		ac = append(ac, a[pivot])
-// 		dc = append(dc, d[pivot])
-// 		return ac, dc
-// 	}
-// 	return a, d
-// }
+func collapse(a, d []int) ([]int, []int) {
+	if len(a) > 1 {
+		ac := []int{}
+		dc := []int{}
+		// ac := make([]int, 0, len(a))
+		// dc := make([]int, 0, len(d))
+		j := 0
+		pivot := 0
+		for j < len(a)-1 {
+			if a[j] == a[j+1] {
+				j++
+			} else {
+				ac = append(ac, a[pivot])
+				if len(d) > 0 {
+					dc = append(dc, d[pivot])
+				}
+				j++
+				pivot = j
+			}
+		}
+		ac = append(ac, a[pivot])
+		if len(d) > 0 {
+			dc = append(dc, d[pivot])
+		}
+		return ac, dc
+	}
+	return a, d
+}
 
 func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	endingblocks := make([]blockset, 0, len(d))
@@ -388,19 +394,21 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	return endingblocks
 }
 
-// func makeblock(c, b, p, q int, a []int) block {
-// 	var bl block
-// 	bl.i = c
-// 	bl.j = b
-// 	arr := make([]int, q-p+1)
-// 	for i := 0; i <= q-p; i++ {
-// 		arr[i] = a[i+p]
-// 	}
-// 	// sort.Ints(arr)
-// 	// arr = removeDuplicateInt(arr)
-// 	bl.k = arr
-// 	return bl
-// }
+func makeblock(c, b, p, q int, a []int) block {
+	var bl block
+	bl.i = c
+	bl.j = b
+	arr := make([]int, q-p+1)
+	for i := 0; i <= q-p; i++ {
+		arr[i] = a[i+p]
+	}
+	sort.Ints(arr)
+	var d []int
+	arr, _ = collapse(arr, d)
+	// arr = removeDuplicateInt(arr)
+	bl.k = arr
+	return bl
+}
 
 func makeblockset(c, b, p, q int, a []int) blockset {
 	var bls blockset
