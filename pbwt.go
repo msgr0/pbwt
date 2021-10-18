@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
-	"sort"
 
 	"time"
 
@@ -22,7 +21,7 @@ type block struct {
 type blockset struct {
 	i int
 	j int
-	k map[int]struct{}
+	k map[int]int
 }
 
 var alphabet int
@@ -80,42 +79,41 @@ func main() {
 	scanner.Buffer(buf, max)
 
 	scanner.Split(bufio.ScanLines)
-	var haplos []string
+	haplos := make([][]byte, 0)
+	i := 0
 	for scanner.Scan() {
-		haplos = append(haplos, scanner.Text())
+		haplos = append(haplos, make([]byte, 0))
+		haplos[i] = append(haplos[i], scanner.Bytes()...)
+		i++
 	}
 
 	err = file.Close()
 	if err != nil {
 		log.Fatalf("File error, aborting")
 	}
-	columns := len(haplos[0][:])
+	columns := len(haplos[0])
 	rows := len(haplos)
 
 	// INPUT INFO
+	fmt.Println(" ======================= ")
+	fmt.Println("| pBWT wild-blocks tool |")
+	fmt.Println(" ======================= ")
+	fmt.Println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
+	fmt.Println("Alphabet size:", alphabet, "\tWildcard:", wildcard, "\t\tMin block:", minBlockRows, "x", minBlockWidth, "\tQuery index:", index) // in further implementation the program could recognize itself input type
 
-	fmt.Println("========================================================")
-	fmt.Println("||                 pBWT wild-blocks tool              ||")
-	fmt.Println("========================================================")
-	fmt.Println("Input matrix is", rows, "rows (samples) x", columns, "columns (SNPs)")
-	fmt.Println("Assuming: alphabet size ==", alphabet) // in further implementation the program could recognize itself input type
-	fmt.Println("Assuming: wildcard presence ==", wildcard)
-	fmt.Println("Assuming: min block size ==", minBlockRows, "rows x", minBlockWidth, "columns")
-	fmt.Println("Assuming: queryIndex ==", index)
-
-	// initArrays ak0 dk0 v
-
-	ak0 := make([]int, 0, rows)
+	// // initArrays ak0 dk0 v
+	ak0 := make([]int, rows)
 	for i := 0; i < rows; i++ {
 		ak0 = append(ak0, i)
 	}
-
-	dk0 := make([]int, 0, rows)
+	dk0 := make([]int, rows)
 	for i := 0; i < rows; i++ {
 		dk0 = append(dk0, 0)
 	}
 
-	// v := make([][]int8, alphabet)
+	v := make([][]int8, alphabet)
+
+	var blockatk []blockset
 
 	pivot := 0
 	var maxarray int
@@ -130,28 +128,27 @@ func main() {
 	blocksum := 0
 	for pivot < maxarray {
 
-		ak0, dk0 = computeNextArrays(ak0, dk0, pivot, haplos)
-		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alleli
-		// CALCOLO DEL BITVECTOR
-		v := computeBitVectors(ak0, dk0, pivot, haplos)
-		// CALCOLO DEI BLOCCHI TERMINANTI IN PIVOT
-		blockatk := computeEndingBlocks(ak0, dk0, pivot, v)
-
+		ak0, dk0, v = computeNextArrays(ak0, dk0, pivot, haplos)
+		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alle li
+		// blockatk = computeEndingBlocks(ak0, dk0, pivot, v)
 		pivot++
 		blocks := len(blockatk)
 		blocksum += blocks
 		// if blocks > 0 {
 		// 	fmt.Print("[", pivot, "]>", blocks, " ")
 		// 	for i := range blockatk {
-		// 		fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
+		// 		fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "[", blockatk[i].k, "]> ;\n")
 		// 	}
 		// 	fmt.Println()
 		// }
+		perc := int(float64(pivot) / float64(maxarray) * 100)
+		print(perc, "%  \r")
 	}
+	print(v[1][1])
 
 	since = time.Since(start)
-	fmt.Println("ENDED with a total of ", blocksum)
-	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
+	fmt.Println("Total blocks ", blocksum)
+	fmt.Println("Started at:", start.Format("15:04:05 Mon 2"), "\t RAN in:", since)
 	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 	if *profPtr {
 		pprof.StopCPUProfile()
@@ -159,61 +156,14 @@ func main() {
 
 }
 
-func computeBitVectors(ak, dk []int, k int, matrix []string) [][]int8 {
+func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]int8) {
+
 	dim := len(ak)
 
 	v := make([][]int8, alphabet)
 	for i := range v {
 		v[i] = make([]int8, 1, dim)
 	}
-	// init first position
-	for t := 0; t < alphabet; t++ {
-		v[t][0] = 1
-	}
-
-	if k == len(matrix[0])-1 {
-		for t := 0; t < alphabet; t++ {
-			for i := 1; i < dim; i++ {
-				v[t] = append(v[t], 1)
-			}
-		}
-		return v
-	}
-
-	var allele int
-	var prec int
-	prec = int(matrix[ak[0]][k+1] - 48) //
-	log.Println("Prec ", prec)
-	for i := 1; i < dim; i++ {
-		allele = int(matrix[ak[i]][k+1] - 48)
-		// if allele == prec {
-		// 	for t := range v {
-		// 		v[t] = append(v[t], 0)
-		// 	}
-
-		// }
-
-		for t := 0; t < alphabet; t++ {
-			if allele == prec {
-				v[t] = append(v[t], 0)
-			} else if allele > 9 {
-				if t == prec {
-					v[t] = append(v[t], 0)
-				} else {
-					v[t] = append(v[t], 1)
-				}
-			} else {
-				v[t] = append(v[t], 1)
-			}
-		}
-		prec = allele
-	}
-	return v
-}
-
-func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
-	dim := len(ak)
-
 	a := make([][]int, alphabet)
 	for i := range a {
 		a[i] = make([]int, 0, dim)
@@ -222,6 +172,10 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	d := make([][]int, alphabet)
 	for i := range d {
 		d[i] = make([]int, 0, dim)
+	}
+
+	for t := 0; t < alphabet; t++ {
+		v[t][0] = 1
 	}
 
 	p := make([]int, alphabet)
@@ -263,7 +217,7 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 	newdim := 0
 	for i := 0; i < alphabet; i++ {
 		newdim += len(a[i])
-		a[i], d[i] = collapse(a[i], d[i])
+		// a[i], d[i] = collapse(a[i], d[i])
 		// a[i], d[i] = smartcollapse(a[i], d[i])
 
 	}
@@ -277,7 +231,46 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 		dkk = append(dkk, d[i]...)
 	}
 
-	return akk, dkk
+	// se sono arrivato all'ultimo indice
+	if k == len(matrix[0])-1 {
+		for t := 0; t < alphabet; t++ {
+			for i := 1; i < dim; i++ {
+				v[t] = append(v[t], 1)
+			}
+		}
+
+	} else {
+		var allele int
+		var prec int
+		prec = int(matrix[akk[0]][k+1] - 48) //
+		log.Println("Prec ", prec)
+		for i := 1; i < dim; i++ {
+			allele = int(matrix[akk[i]][k+1] - 48)
+			// if allele == prec {
+			// 	for t := range v {
+			// 		v[t] = append(v[t], 0)
+			// 	}
+
+			// }
+
+			for t := 0; t < alphabet; t++ {
+				if allele == prec {
+					v[t] = append(v[t], 0)
+				} else if allele > 9 {
+					if t == prec {
+						v[t] = append(v[t], 0)
+					} else {
+						v[t] = append(v[t], 1)
+					}
+				} else {
+					v[t] = append(v[t], 1)
+				}
+			}
+			prec = allele
+		}
+	}
+
+	return akk, dkk, v
 
 }
 func smartcollapse(ak, dk []int) ([]int, []int) {
@@ -340,12 +333,10 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	for i := 1; i < len(d); i++ {
 		x := i
 		y := i
-
 		if d[i] <= d[0]-minBlockWidth {
 			for x > 0 && d[x] <= d[i] {
 				x--
 			}
-
 			for y < len(d)-1 && d[y] <= d[i] {
 				y++
 			}
@@ -387,6 +378,7 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 				}
 
 			}
+
 		}
 
 	}
@@ -394,31 +386,15 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	return endingblocks
 }
 
-func makeblock(c, b, p, q int, a []int) block {
-	var bl block
-	bl.i = c
-	bl.j = b
-	arr := make([]int, q-p+1)
-	for i := 0; i <= q-p; i++ {
-		arr[i] = a[i+p]
-	}
-	sort.Ints(arr)
-	var d []int
-	arr, _ = collapse(arr, d)
-	// arr = removeDuplicateInt(arr)
-	bl.k = arr
-	return bl
-}
-
 func makeblockset(c, b, p, q int, a []int) blockset {
 	var bls blockset
 	bls.i = c
 	bls.j = b
 
-	set := make(map[int]struct{})
-
+	set := make(map[int]int)
+	set[0] = 0
 	for i := 0; i <= q-p; i++ {
-		set[a[i+p]] = struct{}{}
+		set[a[i+p]] = i + p
 	}
 
 	bls.k = set
