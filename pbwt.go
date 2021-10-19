@@ -104,13 +104,9 @@ func main() {
 	// // initArrays ak0 dk0 v
 	ak0 := make([]int, rows)
 	for i := 0; i < rows; i++ {
-		ak0 = append(ak0, i)
+		ak0[i] = i
 	}
 	dk0 := make([]int, rows)
-	for i := 0; i < rows; i++ {
-		dk0 = append(dk0, 0)
-	}
-
 	v := make([][]int8, alphabet)
 
 	var blockatk []blockset
@@ -118,7 +114,7 @@ func main() {
 	pivot := 0
 	var maxarray int
 	if index < 0 {
-		maxarray = len(haplos[0][:])
+		maxarray = columns
 	} else {
 		maxarray = index
 	}
@@ -130,8 +126,7 @@ func main() {
 
 		ak0, dk0, v = computeNextArrays(ak0, dk0, pivot, haplos)
 		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alle li
-		// blockatk = computeEndingBlocks(ak0, dk0, pivot, v)
-		pivot++
+		blockatk = computeEndingBlocks(ak0, dk0, pivot, v)
 		blocks := len(blockatk)
 		blocksum += blocks
 		// if blocks > 0 {
@@ -143,12 +138,13 @@ func main() {
 		// }
 		perc := int(float64(pivot) / float64(maxarray) * 100)
 		print(perc, "%  \r")
+		pivot++
 	}
 	print(v[1][1])
 
 	since = time.Since(start)
-	fmt.Println("Total blocks ", blocksum)
-	fmt.Println("Started at:", start.Format("15:04:05 Mon 2"), "\t RAN in:", since)
+
+	fmt.Println("Started at:", start.Format("15:04:05 Mon 2"), "\tRAN in:", since, "\tTotal blocks ", blocksum)
 	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 	if *profPtr {
 		pprof.StopCPUProfile()
@@ -160,22 +156,14 @@ func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]
 
 	dim := len(ak)
 
-	v := make([][]int8, alphabet)
-	for i := range v {
-		v[i] = make([]int8, 1, dim)
-	}
 	a := make([][]int, alphabet)
 	for i := range a {
-		a[i] = make([]int, 0, dim)
+		a[i] = make([]int, 0)
 	}
 
 	d := make([][]int, alphabet)
 	for i := range d {
-		d[i] = make([]int, 0, dim)
-	}
-
-	for t := 0; t < alphabet; t++ {
-		v[t][0] = 1
+		d[i] = make([]int, 0)
 	}
 
 	p := make([]int, alphabet)
@@ -216,8 +204,9 @@ func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]
 
 	newdim := 0
 	for i := 0; i < alphabet; i++ {
+		a[i], d[i] = collapse(a[i], d[i])
 		newdim += len(a[i])
-		// a[i], d[i] = collapse(a[i], d[i])
+
 		// a[i], d[i] = smartcollapse(a[i], d[i])
 
 	}
@@ -231,6 +220,15 @@ func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]
 		dkk = append(dkk, d[i]...)
 	}
 
+	dim = len(akk)
+	v := make([][]int8, alphabet)
+	for i := range v {
+		v[i] = make([]int8, 1, dim)
+	}
+
+	for t := 0; t < alphabet; t++ {
+		v[t][0] = 1
+	}
 	// se sono arrivato all'ultimo indice
 	if k == len(matrix[0])-1 {
 		for t := 0; t < alphabet; t++ {
@@ -300,29 +298,28 @@ func smartcollapse(ak, dk []int) ([]int, []int) {
 
 func collapse(a, d []int) ([]int, []int) {
 	if len(a) > 1 {
-		ac := []int{}
-		dc := []int{}
-		// ac := make([]int, 0, len(a))
-		// dc := make([]int, 0, len(d))
-		j := 0
+		// ac := []int{}
+		// dc := []int{}
+		ac := make([]int, 0)
+		dc := make([]int, 0)
+		i := 0
 		pivot := 0
-		for j < len(a)-1 {
-			if a[j] == a[j+1] {
-				j++
-			} else {
+
+		for i < len(a)-1 {
+			if a[i] != a[i+1] {
 				ac = append(ac, a[pivot])
-				if len(d) > 0 {
-					dc = append(dc, d[pivot])
-				}
-				j++
-				pivot = j
+				dc = append(dc, d[pivot])
+				i++
+				pivot = i
+			} else {
+				i++
 			}
+
 		}
 		ac = append(ac, a[pivot])
-		if len(d) > 0 {
-			dc = append(dc, d[pivot])
-		}
+		dc = append(dc, d[pivot])
 		return ac, dc
+
 	}
 	return a, d
 }
