@@ -21,7 +21,7 @@ type block struct {
 type blockset struct {
 	i int
 	j int
-	k map[int]int
+	k map[int]struct{}
 }
 
 var alphabet int
@@ -29,6 +29,7 @@ var wildcard bool
 var minBlockWidth int
 var minBlockRows int
 var index int
+var blocksum int
 
 func main() {
 
@@ -95,11 +96,11 @@ func main() {
 	rows := len(haplos)
 
 	// INPUT INFO
-	fmt.Println(" ======================= ")
-	fmt.Println("| pBWT wild-blocks tool |")
-	fmt.Println(" ======================= ")
-	fmt.Println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
-	fmt.Println("Alphabet size:", alphabet, "\tWildcard:", wildcard, "\t\tMin block:", minBlockRows, "x", minBlockWidth, "\tQuery index:", index) // in further implementation the program could recognize itself input type
+	println(" ======================= ")
+	println("| pBWT wild-blocks tool |")
+	println(" ======================= ")
+	println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
+	println("Alphabet size:", alphabet, "\tWildcard:", wildcard, "\t\tMin block:", minBlockRows, "x", minBlockWidth, "\tQuery index:", index) // in further implementation the program could recognize itself input type
 
 	// // initArrays ak0 dk0 v
 	ak0 := make([]int, rows)
@@ -121,30 +122,29 @@ func main() {
 
 	var since time.Duration
 	var start = time.Now()
-	blocksum := 0
+	blocksum = 0
 	for pivot < maxarray {
 
 		ak0, dk0, v = computeNextArrays(ak0, dk0, pivot, haplos)
 		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alle li
 		blockatk = computeEndingBlocks(ak0, dk0, pivot, v)
 		blocks := len(blockatk)
-		blocksum += blocks
-		// if blocks > 0 {
-		// 	fmt.Print("[", pivot, "]>", blocks, " ")
-		// 	for i := range blockatk {
-		// 		fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "[", blockatk[i].k, "]> ;\n")
-		// 	}
-		// 	fmt.Println()
-		// }
+		if blocks > 0 {
+			fmt.Print("[", pivot+1, "]>", blocks, " ")
+			// for i := range blockatk {
+			// 	fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), ";")
+			// }
+			fmt.Println()
+		}
 		perc := int(float64(pivot) / float64(maxarray) * 100)
 		print(perc, "%  \r")
 		pivot++
 	}
-	print(v[1][1])
+	// print(v[1][1])
 
 	since = time.Since(start)
 
-	fmt.Println("Started at:", start.Format("15:04:05 Mon 2"), "\tRAN in:", since, "\tTotal blocks ", blocksum)
+	println("Started at:", start.Format("15:04:05 Mon 2"), "\tRAN in:", int(since.Seconds()), "\tTotal blocks ", blocksum)
 	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
 	if *profPtr {
 		pprof.StopCPUProfile()
@@ -327,14 +327,15 @@ func collapse(a, d []int) ([]int, []int) {
 func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	endingblocks := make([]blockset, 0, len(d))
 	//compute openblocks
-	for i := 1; i < len(d); i++ {
+	for i := 0; i < len(d); i++ {
 		x := i
 		y := i
 		if d[i] <= d[0]-minBlockWidth {
 			for x > 0 && d[x] <= d[i] {
 				x--
 			}
-			for y < len(d)-1 && d[y] <= d[i] {
+
+			for y < len(d) && d[y] <= d[i] {
 				y++
 			}
 			y--
@@ -363,6 +364,7 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 
 			}
 			if !open {
+				blocksum++
 				// QUI FACCIO L'APPEND DI  block(d[i],d[0], X, Y)  ai blocchi chiusi
 				// fmt.Println("DEBUG:: ", "d[i]=", d[i], "  d[0]=", d[0], "  x=", x, "  y=", y, "  d[x]=", d[x], "  d[y]=", d[y], "  len(d)=", len(d))
 				// resblock := makeblock(d[i], d[0], x, y, a)
@@ -371,6 +373,7 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 				// }
 				resset := makeblockset(d[i], d[0], x, y, a)
 				if len(resset.k) >= minBlockWidth {
+
 					endingblocks = append(endingblocks, resset)
 				}
 
@@ -388,10 +391,9 @@ func makeblockset(c, b, p, q int, a []int) blockset {
 	bls.i = c
 	bls.j = b
 
-	set := make(map[int]int)
-	set[0] = 0
+	set := make(map[int]struct{})
 	for i := 0; i <= q-p; i++ {
-		set[a[i+p]] = i + p
+		set[a[i+p]] = struct{}{}
 	}
 
 	bls.k = set
