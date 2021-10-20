@@ -123,6 +123,7 @@ func main() {
 	var since time.Duration
 	var start = time.Now()
 	blocksum = 0
+	var perc int
 	for pivot < maxarray {
 
 		ak0, dk0, v = computeNextArrays(ak0, dk0, pivot, haplos)
@@ -136,10 +137,12 @@ func main() {
 			// }
 			fmt.Println()
 		}
-		perc := int(float64(pivot) / float64(maxarray) * 100)
-		print(perc, "%  \r")
+		perc = int(float64(pivot) / float64(maxarray) * 100)
+		print(" ", perc, "%  \r \t\t blocks:", blocksum, "\r")
 		pivot++
 	}
+	print(" ", perc, "%  \t\t blocks:", blocksum, "\n")
+
 	// print(v[1][1])
 
 	since = time.Since(start)
@@ -241,7 +244,6 @@ func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]
 		var allele int
 		var prec int
 		prec = int(matrix[akk[0]][k+1] - 48) //
-		log.Println("Prec ", prec)
 		for i := 1; i < dim; i++ {
 			allele = int(matrix[akk[i]][k+1] - 48)
 			// if allele == prec {
@@ -327,7 +329,7 @@ func collapse(a, d []int) ([]int, []int) {
 func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 	endingblocks := make([]blockset, 0, len(d))
 	//compute openblocks
-	for i := 0; i < len(d); i++ {
+	for i := (minBlockRows - 1); i < len(d); i++ {
 		x := i
 		y := i
 		if d[i] <= d[0]-minBlockWidth {
@@ -373,7 +375,6 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 				// }
 				resset := makeblockset(d[i], d[0], x, y, a)
 				if len(resset.k) >= minBlockWidth {
-
 					endingblocks = append(endingblocks, resset)
 				}
 
