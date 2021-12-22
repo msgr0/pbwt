@@ -1,9 +1,9 @@
 # pbwt with missing data
-This tool is the implementation of the positional Burrows Wheeler Transform with the handling capabilities of missing data (GAPs), with the aim of finding Maximal Perfect Haplotype Blocks
+This tool is the implementation of the positional Burrows Wheeler Transform with the handling capabilities of missing data (GAPs), with the final aim of finding Maximal Perfect Haplotype Blocks in a n-ary matrix of haplotypes.
 
 
 The tool takes as input:
-    - a t-nary matrix (a binary matrix as stardard input) with the addition of the wildcard symbol (*). Input must be given as a plain text file, any extension accepted. For clarity you may use `.bm` extension for binary matrices and `.bmw` for binary matrices with gaps; `.txt` is fine too.
+    - a n-ary matrix (a binary matrix as stardard input) with the addition of the wildcard symbol (*). Input must be given as a plain text file, any extension accepted. For clarity you may use `.bm` extension for binary matrices and `.bmw` for binary matrices with gaps; `.txt` is fine too.
     - query parameter (-q=integer) for stopping the computation at a given column index, useful for outputting a (prefix) and d (divergence) arrays.
     (Defaults to last index)
     - minimum rows parameter (-min_r=integer) used to specify the min row count of a single block
