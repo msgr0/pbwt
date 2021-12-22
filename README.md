@@ -20,7 +20,7 @@ The tool takes as input:
 In order to use this tool you have to install `go_lang` into your system, version 1.16 or above recommended. Check [golang official site](https://go.dev/dl/) or use a conda environment.
 
 Then run 
-`git clone https://github.com/illoxian/pbwt.git` your terminal or alternatively, download the zip file from [github](https://github.com/illoxian/pbwt) and unpack it. 
+`git clone https://github.com/illoxian/pbwt.git` into your terminal or, alternatively, download the zip file from [github](https://github.com/illoxian/pbwt) and unpack it. 
 
 Reach the pbwt folder
 ```cd pbwt```
