@@ -103,12 +103,16 @@ func main() {
 	columns := len(haplos[0])
 	rows := len(haplos)
 
+	if maxIndex < 0 {
+		maxIndex = columns
+	}
+
 	// INPUT INFO
 	fmt.Println(" ======================= ")
 	fmt.Println("| pBWT wild-blocks tool |")
 	fmt.Println(" ======================= ")
 	fmt.Println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
-	fmt.Println("Alphabet size:", alphabet, "\nMin block:", minBlockRows, "x", minBlockWidth, "\nQuery index:", index) // in further implementation the program could recognize itself input type
+	fmt.Println("Alphabet size:", alphabet, "\nMin block:", minBlockRows, "x", minBlockWidth, "\nQuery index:", maxIndex) // in further implementation the program could recognize itself input type
 
 	// Data Init
 
