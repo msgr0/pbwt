@@ -52,7 +52,7 @@ Running examples can be found under the `test_files` folder.
 
 An execution example has been saved [here](https://github.com/illoxian/pbwt/blob/main/docs/execution_examples/report_toy.txt) and shows the exection of the tool taking `./test_files/toy.bmw` as input.
 
-## Adding wildcard
+## Adding wildcards to your input
 
 If you are looking to add wildcards to your matrix, feel free to use the tool under the `./wildcadd` folder.
 
