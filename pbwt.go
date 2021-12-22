@@ -5,77 +5,168 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
+	"runtime/pprof"
 
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func computeBitVectors(ak, dk []int, k int, matrix []string) [][]int8 {
-	dim := len(ak)
-
-	v := make([][]int8, alphabet)
-	for i := range v {
-		v[i] = make([]int8, 1, dim)
-	}
-	// init first position
-	for t := 0; t < alphabet; t++ {
-		v[t][0] = 1
-	}
-
-	if k == len(matrix[0])-1 {
-		for t := 0; t < alphabet; t++ {
-			for i := 1; i < dim; i++ {
-				v[t] = append(v[t], 1)
-			}
-		}
-		return v
-	}
-
-	var allele int
-	var prec int
-	prec = int(matrix[ak[0]][k+1] - 48) //
-	log.Println("Prec ", prec)
-	for i := 1; i < dim; i++ {
-		allele = int(matrix[ak[i]][k+1] - 48)
-		// if allele == prec {
-		// 	for t := range v {
-		// 		v[t] = append(v[t], 0)
-		// 	}
-
-		// }
-
-		for t := 0; t < alphabet; t++ {
-			if allele == prec {
-				v[t] = append(v[t], 0)
-			} else if allele > 9 {
-				if t == prec {
-					v[t] = append(v[t], 0)
-				} else {
-					v[t] = append(v[t], 1)
-				}
-			} else {
-				v[t] = append(v[t], 1)
-			}
-		}
-		prec = allele
-	}
-	return v
+type block struct {
+	i int   // begin column
+	j int   // end column
+	k []int // row indexes
 }
 
-func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
+type blockset struct {
+	i int
+	j int
+	k map[int]struct{}
+}
+
+var alphabet int
+var wildcard bool
+var minBlockWidth int
+var minBlockRows int
+var index int
+var blocksum int
+
+func main() {
+
+	// flags
+	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
+	minBlockWidthPtr := flag.Int("min_w", 2, "Set minimum SNP width for blocks")
+	minBlockRowsPtr := flag.Int("min_r", 2, "Set minimum rows for blocks")
+	wildcardPtr := flag.Bool("w", true, "Set usage of wildcards in the input file")
+	logPtr := flag.Bool("log", false, "set log boolean")
+	profPtr := flag.Bool("p", false, "run with profiler")
+	indexPtr := flag.Int("q", -1, "set query index to stop computation at")
+
+	flag.Parse()
+
+	if !*logPtr {
+		log.SetLevel(0)
+	}
+
+	if *profPtr {
+		f, _ := os.Create("cpuprof.prof")
+		defer f.Close()
+		pprof.StartCPUProfile(f)
+	}
+
+	alphabet = *alphabetPtr
+	wildcard = *wildcardPtr
+	minBlockWidth = *minBlockWidthPtr
+	minBlockRows = *minBlockRowsPtr
+	inputFile := flag.Args()[0]
+	index = *indexPtr
+
+	// serve questo flag parse?
+
+	flag.Parse()
+
+	// Opening file
+
+	file, err := os.Open(inputFile)
+
+	if err != nil {
+		return
+	}
+	info, _ := file.Stat()
+	max := int(info.Size())
+	// big buffer for input file/ further testing and comprehension needed
+	scanner := bufio.NewScanner(file)
+	buf := make([]byte, 0, max)
+	scanner.Buffer(buf, max)
+
+	scanner.Split(bufio.ScanLines)
+	haplos := make([][]byte, 0)
+	i := 0
+	for scanner.Scan() {
+		haplos = append(haplos, make([]byte, 0))
+		haplos[i] = append(haplos[i], scanner.Bytes()...)
+		i++
+	}
+
+	err = file.Close()
+	if err != nil {
+		log.Fatalf("File error, aborting")
+	}
+	columns := len(haplos[0])
+	rows := len(haplos)
+
+	// INPUT INFO
+	println(" ======================= ")
+	println("| pBWT wild-blocks tool |")
+	println(" ======================= ")
+	println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
+	println("Alphabet size:", alphabet, "\tWildcard:", wildcard, "\t\tMin block:", minBlockRows, "x", minBlockWidth, "\tQuery index:", index) // in further implementation the program could recognize itself input type
+
+	// // initArrays ak0 dk0 v
+	ak0 := make([]int, rows)
+	for i := 0; i < rows; i++ {
+		ak0[i] = i
+	}
+	dk0 := make([]int, rows)
+	v := make([][]int8, alphabet)
+
+	var blockatk []blockset
+
+	pivot := 0
+	var maxarray int
+	if index < 0 {
+		maxarray = columns
+	} else {
+		maxarray = index
+	}
+
+	var since time.Duration
+	var start = time.Now()
+	blocksum = 0
+	var perc int
+	for pivot < maxarray {
+
+		ak0, dk0, v = computeNextArrays(ak0, dk0, pivot, haplos)
+		// ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alle li
+		blockatk = computeEndingBlocks(ak0, dk0, pivot, v)
+		blocks := len(blockatk)
+		if blocks > 0 {
+			fmt.Print("[", pivot+1, "]>", blocks, " ")
+			// for i := range blockatk {
+			// 	fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), ";")
+			// }
+			fmt.Println()
+		}
+		perc = int(float64(pivot) / float64(maxarray) * 100)
+		print(" ", perc, "%  \r \t\t blocks:", blocksum, "\r")
+		pivot++
+	}
+	print(" ", perc, "%  \t\t blocks:", blocksum, "\n")
+
+	// print(v[1][1])
+
+	since = time.Since(start)
+
+	println("Started at:", start.Format("15:04:05 Mon 2"), "\tRAN in:", int(since.Seconds()), "\tTotal blocks ", blocksum)
+	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
+	if *profPtr {
+		pprof.StopCPUProfile()
+	}
+
+}
+
+func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]int8) {
+
 	dim := len(ak)
-	// allocing dim size, that's not really memory wise to be honest
-	// go slices got me covered ehehehe
+
 	a := make([][]int, alphabet)
 	for i := range a {
-		a[i] = make([]int, 0, dim)
+		a[i] = make([]int, 0)
 	}
 
 	d := make([][]int, alphabet)
 	for i := range d {
-		d[i] = make([]int, 0, dim)
+		d[i] = make([]int, 0)
 	}
 
 	p := make([]int, alphabet)
@@ -116,9 +207,10 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 
 	newdim := 0
 	for i := 0; i < alphabet; i++ {
+		a[i], d[i] = collapse(a[i], d[i])
 		newdim += len(a[i])
-		// a[i], d[i] = collapse(a[i], d[i])
-		// smartcollapse(a[i], d[i])
+
+		// a[i], d[i] = smartcollapse(a[i], d[i])
 
 	}
 	var akk []int
@@ -131,7 +223,54 @@ func computeNextArrays(ak, dk []int, k int, matrix []string) ([]int, []int) {
 		dkk = append(dkk, d[i]...)
 	}
 
-	return akk, dkk
+	dim = len(akk)
+	v := make([][]int8, alphabet)
+	for i := range v {
+		v[i] = make([]int8, 1, dim)
+	}
+
+	for t := 0; t < alphabet; t++ {
+		v[t][0] = 1
+	}
+	// se sono arrivato all'ultimo indice
+	if k == len(matrix[0])-1 {
+		for t := 0; t < alphabet; t++ {
+			for i := 1; i < dim; i++ {
+				v[t] = append(v[t], 1)
+			}
+		}
+
+	} else {
+		var allele int
+		var prec int
+		prec = int(matrix[akk[0]][k+1] - 48) //
+		for i := 1; i < dim; i++ {
+			allele = int(matrix[akk[i]][k+1] - 48)
+			// if allele == prec {
+			// 	for t := range v {
+			// 		v[t] = append(v[t], 0)
+			// 	}
+
+			// }
+
+			for t := 0; t < alphabet; t++ {
+				if allele == prec {
+					v[t] = append(v[t], 0)
+				} else if allele > 9 {
+					if t == prec {
+						v[t] = append(v[t], 0)
+					} else {
+						v[t] = append(v[t], 1)
+					}
+				} else {
+					v[t] = append(v[t], 1)
+				}
+			}
+			prec = allele
+		}
+	}
+
+	return akk, dkk, v
 
 }
 func smartcollapse(ak, dk []int) ([]int, []int) {
@@ -141,67 +280,64 @@ func smartcollapse(ak, dk []int) ([]int, []int) {
 	copy(d, dk)
 
 	if len(a) > 1 {
-		i := 0
 		j := 0
-		for i < len(a)-1 { // scorro tutto l'array a
+		for i := 0; i < len(a)-1; i++ { // scorro tutto l'array a
 			// se trovo due valori diversi passo al successivo
-			if a[i] != a[i+1] && i <= j+1 {
-				i++
-				j = i
-			} else if a[i] != a[i+1] && i > j+1 {
-				a = append(a[:j+1], a[i:]...)
-				d = append(d[:j+1], d[i:]...)
-				i++
-				j = i
-			} else { // mi trovo davanti alla prima occorrenza uguale append a[:j], a[i:] if i > j
-				i++
-			}
+			if a[i] != a[i+1] {
+				if i <= j+1 {
+					j = i
+				} else { // i > j+1
+					a = append(a[:j+1], a[i:]...)
+					d = append(d[:j+1], d[i:]...)
+					j = i
+				}
+
+			} // mi trovo davanti alla prima occorrenza uguale append a[:j], a[i:] if i > j
 		}
 	}
 	return a, d
 }
+
 func collapse(a, d []int) ([]int, []int) {
 	if len(a) > 1 {
-		ac := []int{}
-		dc := []int{}
-		// ac := make([]int, 0, len(a))
-		// dc := make([]int, 0, len(d))
-
-		j := 0
+		// ac := []int{}
+		// dc := []int{}
+		ac := make([]int, 0)
+		dc := make([]int, 0)
+		i := 0
 		pivot := 0
-		for j < len(a)-1 {
-			if a[j] == a[j+1] {
-				j++
-			} else {
+
+		for i < len(a)-1 {
+			if a[i] != a[i+1] {
 				ac = append(ac, a[pivot])
 				dc = append(dc, d[pivot])
-				j++
-				pivot = j
+				i++
+				pivot = i
+			} else {
+				i++
 			}
 
 		}
-
 		ac = append(ac, a[pivot])
 		dc = append(dc, d[pivot])
-
 		return ac, dc
+
 	}
 	return a, d
 }
 
-func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
-	endingblocks := make([]block, 0, len(d))
+func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
+	endingblocks := make([]blockset, 0, len(d))
 	//compute openblocks
-	for i := 1; i < len(d); i++ {
+	for i := (minBlockRows - 1); i < len(d); i++ {
 		x := i
 		y := i
-
 		if d[i] <= d[0]-minBlockWidth {
 			for x > 0 && d[x] <= d[i] {
 				x--
 			}
 
-			for y < len(d)-1 && d[y] <= d[i] {
+			for y < len(d) && d[y] <= d[i] {
 				y++
 			}
 			y--
@@ -230,13 +366,20 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
 
 			}
 			if !open {
+				blocksum++
 				// QUI FACCIO L'APPEND DI  block(d[i],d[0], X, Y)  ai blocchi chiusi
 				// fmt.Println("DEBUG:: ", "d[i]=", d[i], "  d[0]=", d[0], "  x=", x, "  y=", y, "  d[x]=", d[x], "  d[y]=", d[y], "  len(d)=", len(d))
-				resblock := makeblock(d[i], d[0], x, y, a)
-				if len(resblock.k) >= minBlockWidth {
-					endingblocks = append(endingblocks, resblock)
+				// resblock := makeblock(d[i], d[0], x, y, a)
+				// if len(resblock.k) >= minBlockWidth {
+				// 	endingblocks = append(endingblocks, resblock)
+				// }
+				resset := makeblockset(d[i], d[0], x, y, a)
+				if len(resset.k) >= minBlockWidth {
+					endingblocks = append(endingblocks, resset)
 				}
+
 			}
+
 		}
 
 	}
@@ -244,160 +387,29 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []block {
 	return endingblocks
 }
 
-func makeblock(c, b, p, q int, a []int) block {
-	var bl block
-	bl.i = c
-	bl.j = b
+func makeblockset(c, b, p, q int, a []int) blockset {
+	var bls blockset
+	bls.i = c
+	bls.j = b
 
-	arr := make([]int, q-p+1)
+	set := make(map[int]struct{})
 	for i := 0; i <= q-p; i++ {
-		arr[i] = a[i+p]
+		set[a[i+p]] = struct{}{}
 	}
-	sort.Ints(arr)
-	arr = removeDuplicateInt(arr)
-	bl.k = arr
 
-	return bl
+	bls.k = set
+	return bls
 
 }
 
-func removeDuplicateInt(intSlice []int) []int {
-	allKeys := make(map[int]bool)
-	list := []int{}
-	for _, item := range intSlice {
-		if _, value := allKeys[item]; !value {
-			allKeys[item] = true
-			list = append(list, item)
-		}
-	}
-	return list
-}
-
-type block struct {
-	i int   // begin column
-	j int   // end column
-	k []int // row indexes
-}
-
-var alphabet int
-var wildcard bool
-var minBlockWidth int
-var minBlockRows int
-var index int
-
-func main() {
-	// flags
-	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
-	minBlockWidthPtr := flag.Int("min_w", 2, "Set minimum SNP width for blocks")
-	minBlockRowsPtr := flag.Int("min_r", 2, "Set minimum rows for blocks")
-	wildcardPtr := flag.Bool("w", true, "Set usage of wildcards in the input file")
-	logPtr := flag.Bool("log", false, "set log boolean")
-	indexPtr := flag.Int("q", -1, "set query index to stop computation at")
-
-	flag.Parse()
-
-	if !*logPtr {
-		log.SetLevel(0)
-	}
-
-	alphabet = *alphabetPtr
-	wildcard = *wildcardPtr
-	minBlockWidth = *minBlockWidthPtr
-	minBlockRows = *minBlockRowsPtr
-	inputFile := flag.Args()[0]
-	index = *indexPtr
-
-	// serve questo flag parse?
-
-	flag.Parse()
-
-	// Opening file
-
-	file, err := os.Open(inputFile)
-
-	if err != nil {
-		return
-	}
-	info, _ := file.Stat()
-	max := int(info.Size())
-	// big buffer for input file/ further testing and comprehension needed
-	scanner := bufio.NewScanner(file)
-	buf := make([]byte, 0, max)
-	scanner.Buffer(buf, max)
-
-	scanner.Split(bufio.ScanLines)
-	var haplos []string
-	for scanner.Scan() {
-		haplos = append(haplos, scanner.Text())
-	}
-
-	err = file.Close()
-	if err != nil {
-		log.Fatalf("File error, aborting")
-	}
-	columns := len(haplos[0][:])
-	rows := len(haplos)
-
-	// INPUT INFO
-
-	fmt.Println("========================================================")
-	fmt.Println("||                 pBWT wild-blocks tool              ||")
-	fmt.Println("========================================================")
-	fmt.Println("Input matrix is", rows, "rows (samples) x", columns, "columns (SNPs)")
-	fmt.Println("Assuming: alphabet size ==", alphabet) // in further implementation the program could recognize itself input type
-	fmt.Println("Assuming: wildcard presence ==", wildcard)
-	fmt.Println("Assuming: min block size ==", minBlockRows, "rows x", minBlockWidth, "columns")
-	fmt.Println("Assuming: queryIndex ==", index)
-
-	// initArrays ak0 dk0 v
-
-	ak0 := make([]int, 0, rows)
-	for i := 0; i < rows; i++ {
-		ak0 = append(ak0, i)
-	}
-
-	dk0 := make([]int, 0, rows)
-	for i := 0; i < rows; i++ {
-		dk0 = append(dk0, 0)
-	}
-
-	v := make([][]int8, alphabet)
-
-	pivot := 0
-	var maxarray int
-	if index < 0 {
-		maxarray = len(haplos[0][:])
-	} else {
-		maxarray = index
-	}
-
-	var since time.Duration
-	var start = time.Now()
-	blocksum := 0
-	for pivot < maxarray {
-
-		ak0, dk0 = computeNextArrays(ak0, dk0, pivot, haplos)
-		ak0, dk0 = smartcollapse(ak0, dk0) //devo collassare i singoli alleli
-		// CALCOLO DEL BITVECTOR
-		v = computeBitVectors(ak0, dk0, pivot, haplos)
-		// CALCOLO DEI BLOCCHI TERMINANTI IN PIVOT
-		blockatk := computeEndingBlocks(ak0, dk0, pivot, v)
-
-		pivot++
-		blocks := len(blockatk)
-		blocksum += blocks
-		// if blocks > 0 {
-		// 	fmt.Print("[", pivot, "]>", blocks, " ")
-		// 	for i := range blockatk {
-		// 		fmt.Print("<b:", blockatk[i].i, "  len:", len(blockatk[i].k), "> ;")
-		// 	}
-		// 	fmt.Println()
-		// }
-	}
-
-	since = time.Since(start)
-	fmt.Println("ENDED with a total of ", blocksum)
-	fmt.Println("Started at : ", start, "\nRAN in ss: ", since)
-	// fmt.Println("Last Arrays\nak", ak0, "\ndk0", dk0, "\nv", v)
-
-}
+// func removeDuplicateInt(intSlice []int) []int {
+// 	allKeys := make(map[int]bool)
+// 	list := []int{}
+// 	for _, item := range intSlice {
+// 		if _, value := allKeys[item]; !value {
+// 			allKeys[item] = true
+// 			list = append(list, item)
+// 		}
+// 	}
+// 	return list
+// }
