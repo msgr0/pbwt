@@ -1,0 +1,85 @@
+ ======================= 
+| pBWT wild-blocks tool |
+ ======================= 
+Input 4 rows (samples) x 5 columns (SNPs)
+Alphabet size: 2 
+Min block: 2 x 1 
+Query index: 0
+ 0%   				 total blocks:0
+
+Started at :  2021-12-22 14:14:12
+Current t. :  2021-12-22 14:14:12
+
+Found a total of  0 blocks in 24.963µs
+
+Arrays at index 1 :
+a [1 2 0 3] 
+d [1 0 1 0]
+ ======================= 
+| pBWT wild-blocks tool |
+ ======================= 
+Input 4 rows (samples) x 5 columns (SNPs)
+Alphabet size: 2 
+Min block: 2 x 1 
+Query index: 0
+ 0%   				 total blocks:0 50%   				 total blocks:1
+
+Started at :  2021-12-22 14:14:21
+Current t. :  2021-12-22 14:14:21
+
+Found a total of  1 blocks in 77.925µs
+
+Arrays at index 2 :
+a [1 2 0 3 2 0] 
+d [2 0 1 0 2 1]
+ ======================= 
+| pBWT wild-blocks tool |
+ ======================= 
+Input 4 rows (samples) x 5 columns (SNPs)
+Alphabet size: 2 
+Min block: 2 x 1 
+Query index: 0
+ 0%   				 total blocks:0 33%   				 total blocks:1 66%   				 total blocks:2
+
+Started at :  2021-12-22 14:14:25
+Current t. :  2021-12-22 14:14:25
+
+Found a total of  2 blocks in 124.074µs
+
+Arrays at index 3 :
+a [0 3 0 1 2 0 3 2 0] 
+d [3 0 2 3 0 1 0 2 1]
+ ======================= 
+| pBWT wild-blocks tool |
+ ======================= 
+Input 4 rows (samples) x 5 columns (SNPs)
+Alphabet size: 2 
+Min block: 2 x 1 
+Query index: 0
+ 0%   				 total blocks:0 25%   				 total blocks:1 50%   				 total blocks:2 75%   				 total blocks:4
+
+Started at :  2021-12-22 14:14:30
+Current t. :  2021-12-22 14:14:30
+
+Found a total of  4 blocks in 163.58µs
+
+Arrays at index 4 :
+a [1 0 3 0 1 2 0 3 2 0] 
+d [4 4 0 2 3 0 1 0 2 1]
+ ======================= 
+| pBWT wild-blocks tool |
+ ======================= 
+Input 4 rows (samples) x 5 columns (SNPs)
+Alphabet size: 2 
+Min block: 2 x 1 
+Query index: 0
+ 0%   				 total blocks:0 20%   				 total blocks:1 40%   				 total blocks:2 60%   				 total blocks:4 80%   				 total blocks:6
+
+Started at :  2021-12-22 14:14:35
+Current t. :  2021-12-22 14:14:35
+
+Found a total of  6 blocks in 169.317µs
+
+Arrays at index 5 :
+a [1 0 1 2 0 2 0 3 2 3 2] 
+d [5 4 3 0 1 2 1 5 3 1 2]

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"os"
 	"runtime/pprof"
 	"time"
@@ -46,7 +47,7 @@ func main() {
 
 	// flags
 	alphabetPtr := flag.Int("a", 2, "Set alphabet cardinality, wildcard excluded. {0,1,*}")
-	minBlockWidthPtr := flag.Int("min_w", 2, "Set minimum SNP width for blocks")
+	minBlockWidthPtr := flag.Int("min_w", 1, "Set minimum SNP width for blocks")
 	minBlockRowsPtr := flag.Int("min_r", 2, "Set minimum rows for blocks")
 	//	wildcardPtr := flag.Bool("w", true, "Set usage of wildcards in the input file")
 	//	logPtr := flag.Bool("log", false, "set log boolean")
@@ -65,6 +66,7 @@ func main() {
 	minBlockWidth = *minBlockWidthPtr
 	minBlockRows = *minBlockRowsPtr
 	inputFile := flag.Args()[0]
+
 	maxIndex = *indexPtr
 
 	flag.Parse()
@@ -74,7 +76,7 @@ func main() {
 	file, err := os.Open(inputFile)
 
 	if err != nil {
-		print("File error during LOADING (check path), aborting")
+		fmt.Print("File error during LOADING (check path), aborting")
 		return
 	}
 
@@ -96,17 +98,17 @@ func main() {
 
 	err = file.Close()
 	if err != nil {
-		print("File error during PARSING, aborting")
+		fmt.Print("File error during PARSING, aborting")
 	}
 	columns := len(haplos[0])
 	rows := len(haplos)
 
 	// INPUT INFO
-	println(" ======================= ")
-	println("| pBWT wild-blocks tool |")
-	println(" ======================= ")
-	println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
-	println("Alphabet size:", alphabet, "\t\tMin block:", minBlockRows, "x", minBlockWidth, "\tQuery index:", index) // in further implementation the program could recognize itself input type
+	fmt.Println(" ======================= ")
+	fmt.Println("| pBWT wild-blocks tool |")
+	fmt.Println(" ======================= ")
+	fmt.Println("Input", rows, "rows (samples) x", columns, "columns (SNPs)")
+	fmt.Println("Alphabet size:", alphabet, "\nMin block:", minBlockRows, "x", minBlockWidth, "\nQuery index:", index) // in further implementation the program could recognize itself input type
 
 	// Data Init
 
@@ -147,15 +149,20 @@ func main() {
 		// }
 
 		percentage = int(float64(index) / float64(maxIndex) * 100)
-		print(" ", percentage, "%  \r \t\t blocks:", blocksum, "\r")
+		fmt.Print(" ", percentage, "%  \r \t\t\t\t total blocks:", blocksum, "\r")
 		index++
 	}
-
 	since = time.Since(start)
-	println("Started at : ", start, "\nRAN in ss: ", since)
 
-	println("Last Arrays at index", index, ":\nak", ak0, "\ndk0", dk0, "\nv", v)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println("Started at : ", start.Format("2006-01-02 15:04:05"))
+	fmt.Println("Current t. : ", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Println()
+	fmt.Println("Found a total of ", blocksum, "blocks in", since)
 
+	fmt.Println()
+	fmt.Println("Arrays at index", index, ":\na", ak0, "\nd", dk0)
 }
 
 func computeNextArrays(ak, dk []int, k int, matrix [][]byte) ([]int, []int, [][]int8) {
@@ -311,8 +318,7 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 				if i-start >= minBlockRows {
 					//check maximalitiy of maxI, pivot, start, i a
 					if ends(maxI, pivot, start, i, a, v) {
-						print("b2k-info: ", maxI, "  ", pivot, "  ", start, "  ", i, "\n"+
-							"")
+						// fmt.Print("b2k-info: ", maxI, "  ", pivot, "  ", start, "  ", i, "\n")
 						resset := makeblockset(maxI, pivot, start, i, a)
 						endingBlocks = append(endingBlocks, resset)
 					}
@@ -326,8 +332,7 @@ func computeEndingBlocks(a, d []int, pivot int, v [][]int8) []blockset {
 		if len(d)-1-start >= minBlockRows {
 			if ends(maxI, pivot, start, len(d)-1, a, v) {
 
-				print("blk-info: ", maxI, "  ", pivot, "  ", start, "  ", len(d)-1, "\n"+
-					"")
+				// fmt.Print("blk-info: ", maxI, "  ", pivot, "  ", start, "  ", len(d)-1, "\n")
 				resset := makeblockset(maxI, pivot, start, len(d)-1, a)
 				endingBlocks = append(endingBlocks, resset)
 			}
