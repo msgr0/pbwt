@@ -37,8 +37,6 @@ You are almost done! Try an execution with
 ./pbwt test_files/small.bmw
 ```
 
----
-
 Stardard usage is  `./pbwt [parameters] "pathToInput"` (plese make sure to insert all the needed parameters before the file path)
 
 ```
@@ -48,6 +46,22 @@ Stardard usage is  `./pbwt [parameters] "pathToInput"` (plese make sure to inser
 For more informations run ```./pbwt -?```
 
 
-## Samples
+## Execution examples
 
-You can find some examples under the `test_files` folder.
+Running examples can be found under the `test_files` folder.
+
+An execution example has been saved [here](https://github.com/illoxian/pbwt/blob/main/docs/execution_examples/report_toy.txt) and shows the exection of the tool taking `./test_files/toy.bmw` as input.
+
+## Adding wildcard
+
+If you are looking to add wildcards to your matrix, feel free to use the tool under the `./wildcadd` folder.
+
+Basic usage of the tool
+
+```
+cd ./wildcadd
+go build
+./wildcadd -o="outputPath" -r="wildcardRate" "pathtofile"
+```
+* `-r` is mandatory
+* `-o` defaults to `./` (same path as the input file) so can be avoided
